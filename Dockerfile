@@ -41,10 +41,10 @@ ARG VALHALLA_UID=59999
 ARG VALHALLA_GID=59999
 ARG ARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-RUN if getent group ${VALHALLA_GID} >/dev/null; then groupadd -g ${VALHALLA_GID} valhalla; fi && \
+RUN if ! getent group ${VALHALLA_GID} >/dev/null; then groupadd -g ${VALHALLA_GID} valhalla; fi && \
   useradd -lmu ${VALHALLA_UID} -g valhalla valhalla && \
   mkdir /custom_files && \
-  if [ $VALHALLA_UID != 59999 ] || [ $VALHALLA_GID != 59999 ]; then chmod 0775 custom_files && chown valhalla:valhalla /custom_files; else usermod -aG sudo valhalla && echo "ALL            ALL = (ALL) NOPASSWD: ALL" >> /etc/sudoers; fi
+  if [ $VALHALLA_UID != 59999 ] || [ $VALHALLA_GID != 59999 ]; then chmod 0775 /custom_files && chown valhalla:valhalla /custom_files; else usermod -aG sudo valhalla && echo "ALL            ALL = (ALL) NOPASSWD: ALL" >> /etc/sudoers; fi
 
 COPY scripts/. /valhalla/scripts
 
