@@ -17,11 +17,11 @@ FROM ubuntu:22.04 as runner_base
 MAINTAINER Nils Nolde <nils@gis-ops.com>
 
 RUN apt-get update > /dev/null && \
-    export DEBIAN_FRONTEND=noninteractive && \
-    apt-get install -y libluajit-5.1-2 \
-      libzmq5 libczmq4 spatialite-bin libprotobuf-lite23 sudo locales \
-      libsqlite3-0 libsqlite3-mod-spatialite libcurl4 \
-      python3.10-minimal python3-distutils curl unzip moreutils jq spatialite-bin python-is-python3 > /dev/null
+  export DEBIAN_FRONTEND=noninteractive && \
+  apt-get install -y libluajit-5.1-2 \
+  libzmq5 libczmq4 spatialite-bin libprotobuf-lite23 sudo locales \
+  libsqlite3-0 libsqlite3-mod-spatialite libcurl4 \
+  python3.10-minimal python3-distutils curl unzip moreutils jq spatialite-bin python-is-python3 > /dev/null
 
 COPY --from=builder /usr/local /usr/local
 COPY --from=builder /usr/lib/python3/dist-packages/valhalla/* /usr/lib/python3/dist-packages/valhalla/
@@ -39,8 +39,9 @@ ENV serve_tiles=True
 # with that we can properly test if the default was used or not
 ARG VALHALLA_UID=59999
 ARG VALHALLA_GID=59999
+ARG ARCH=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-RUN groupadd -g ${VALHALLA_GID} valhalla && \
+RUN if getent group ${VALHALLA_GID} >/dev/null; then groupadd -g ${VALHALLA_GID} valhalla; fi && \
   useradd -lmu ${VALHALLA_UID} -g valhalla valhalla && \
   mkdir /custom_files && \
   if [ $VALHALLA_UID != 59999 ] || [ $VALHALLA_GID != 59999 ]; then chmod 0775 custom_files && chown valhalla:valhalla /custom_files; else usermod -aG sudo valhalla && echo "ALL            ALL = (ALL) NOPASSWD: ALL" >> /etc/sudoers; fi
@@ -53,13 +54,15 @@ WORKDIR /custom_files
 
 # Smoke tests
 RUN python -c "import valhalla,sys; print (sys.version, valhalla)" \
-    && valhalla_build_config | jq type \
-    && cat /usr/local/src/valhalla_version \
-    && valhalla_build_tiles -v \
-    && ls -la /usr/local/bin/valhalla*
+  && valhalla_build_config | jq type \
+  && cat /usr/local/src/valhalla_version \
+  && valhalla_build_tiles -v \
+  && ls -la /usr/local/bin/valhalla*
 
 ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH
-ENV LD_LIBRARY_PATH /usr/local/lib:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:/lib32:/usr/lib32
+
+
+ENV LD_LIBRARY_PATH /usr/local/lib:/lib/${ARCH}:/usr/lib/${ARCH}:/lib32:/usr/lib32
 
 # Expose the necessary port
 EXPOSE 8002
